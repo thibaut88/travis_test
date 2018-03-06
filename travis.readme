@@ -1,0 +1,241 @@
+/**************************************
+		TRAVIS : plateforme d'ntégration continue
+**************************************/
+
+Quelques exemples du type d'informations que votre .travis.ymlfichier peut contenir:
+
+Quel langage de programmation utilise votre projet?
+Quelles commandes ou scripts souhaitez-vous exécuter avant chaque génération (par exemple, pour installer ou cloner les dépendances de votre projet)
+Quelle commande est utilisée pour exécuter votre suite de tests
+Emails, feux de camp et salles IRC pour signaler les échecs de construction
+
+
+-------------------------
+Le cycle de vie du Build (ou constructeur)
+-------------------------
+1 - installer : installer les dépendances nécessaires
+2 - script : lance le script de construction
+
+
+Vous pouvez exécuter des commandes personnalisées avant l'étape d'installation 
+( before_install), et avant ( before_script) ou après
+( after_script) l'étape de script.
+
+
+Au cours d'une before_installétape, vous pouvez installer les dépendances 
+supplémentaires requises par votre projet, telles que les packages Ubuntu ou les services personnalisés.
+
+
+Vous pouvez effectuer des étapes supplémentaires lorsque votre génération réussit ou échoue en utilisant after_success(par exemple, la création de documentation ou le déploiement sur un serveur personnalisé) ou after_failure(par exemple, le téléchargement de fichiers journaux). Dans les deux after_failureet after_success, vous pouvez accéder au résultat de la construction en utilisant la $TRAVIS_TEST_RESULTvariable d'environnement.
+
+
+Le cycle de vie complet de la construction, comprenant trois étapes de déploiement 
+facultatives et après vérification du référentiel git et passage au répertoire du référentiel, est:
+	
+	INSTALLATION FACULTATIVE apt addons
+	INSTALLATION FACULTATIVE cache components
+	before_install
+	install
+	before_script
+	script
+	FACULTATIF before_cache (pour nettoyer le cache)
+	after_success ou after_failure
+	OPTIONNEL before_deploy
+	OPTIONNEL deploy
+	OPTIONNEL after_deploy
+	after_script
+
+
+-------------------------
+Personnalisation de l'étape d'installation 
+-------------------------
+Les commandes d'installation des dépendances par défaut dépendent de la langue du projet. Par exemple, les versions Java utilisent Maven ou Gradle, selon le fichier de construction présent dans le référentiel. Les projets Ruby utilisent Bundler lorsqu'un Gemfile est présent dans le référentiel.
+
+Vous pouvez spécifier votre propre script à exécuter pour installer les dépendances dont votre projet a besoin .travis.yml:
+
+Fichier .travis.yml
+install: ./install-dependencies.sh
+
+Lors de l' utilisation des scripts personnalisés , ils doivent être exécutable 
+(par exemple, en utilisant chmod +x) et contiennent une ligne de tralala valide,
+tel que :
+	/usr/bin/env sh, 
+	/usr/bin/env ruby
+	ou /usr/bin/env python.
+
+
+Vous pouvez également fournir plusieurs étapes, par exemple pour installer à la fois les dépendances ruby ​​et de noeud:
+install:
+
+Fichier .travis.yml
+  - bundle install --path vendor/bundle
+  - npm install
+Lorsque l'une des étapes échoue, la construction s'arrête immédiatement et est marquée comme erronée .
+
+
+Ignorer l'étape d'installation
+-------------------------
+Vous pouvez ignorer entièrement l'étape d'installation en ajoutant ce qui suit à votre .travis.yml:
+
+Fichier .travis.yml
+install: true
+
+-------------------------
+Personnalisation de l'étape du constructeur (build)
+-------------------------
+La commande de construction par défaut dépend de la langue du projet. Les projets Ruby utilisent rake, le dénominateur commun pour la plupart des projets Ruby.
+
+Vous pouvez remplacer l'étape de génération par défaut dans .travis.yml:
+script: bundle exec thor build
+Vous pouvez également spécifier plusieurs commandes de script:
+script:
+- bundle exec rake build
+- bundle exec rake builddoc
+Lorsque l'une des commandes de construction renvoie un code de sortie différent de zéro, la construction CI Travis exécute également les commandes suivantes et accumule le résultat de la génération.
+
+Dans l'exemple ci-dessus, si bundle exec rake buildrenvoie un code de sortie de 1, la commande suivante bundle exec rake builddocest toujours exécutée, mais la génération entraînera un échec.
+
+Si votre première étape consiste à exécuter des tests unitaires, suivis de tests d'intégration, vous pouvez toujours vérifier si les tests d'intégration réussissent lorsque les tests unitaires échouent.
+
+Vous pouvez changer ce comportement en utilisant un peu de magie de shell pour exécuter toutes les commandes par la suite, mais la construction échoue quand la première commande retourne un code de sortie différent de zéro. Voici l'extrait de votre.travis.yml
+
+script: bundle exec rake build && bundle exec rake builddoc
+
+Cet exemple (notez le &&) échoue immédiatement en cas d' bundle exec rake buildéchec.
+
+Note sur le $?
+-------------------------
+Chaque commande scriptest traitée par une fonction bash spéciale. Cette fonction manipule $?pour produire des journaux appropriés pour l'affichage. Par conséquent, vous ne devez pas vous fier à la valeur de $?dans la scriptsection pour modifier le comportement de construction. Voyez ce numéro de GitHub pour une discussion plus technique.
+
+
+-------------------------
+Rompre le build
+-------------------------
+Si l'une des commandes des quatre premières étapes du cycle de vie de génération renvoie un code de sortie différent de zéro, la génération est rompue:
+
+Si before_install, installou before_scriptrenvoyer un code de sortie différent de zéro, la génération est erronée et s'arrête immédiatement.
+Si scriptrenvoie un code de sortie différent de zéro, la génération échoue mais continue à s'exécuter avant d'être marquée comme ayant échoué .
+
+Le code de sortie after_success, after_failure, after_scriptet les étapes ultérieures ne touchent pas le résultat de la construction. Cependant, si l'une de ces étapes expire, la construction est marquée comme un échec.
+
+
+
+-------------------------
+Déployer le code
+-------------------------
+Une phase facultative dans le cycle de vie de la construction est le déploiement. Cette étape ne peut pas être ignorée, mais elle est définie en utilisant l'un de nos fournisseurs de déploiement continu pour déployer du code sur Heroku, Engine Yard ou une autre plate-forme prise en charge. Les étapes de déploiement sont ignorées si la génération est rompue.
+
+Lorsque vous déployez des fichiers sur un fournisseur, empêchez Travis CI de réinitialiser votre répertoire de travail et de supprimer toutes les modifications effectuées lors de la construction ( git stash --all) en ajoutant skip_cleanupà votre .travis.yml:
+
+deploy:
+  skip_cleanup: true
+
+Vous pouvez exécuter des étapes avant un déploiement en utilisant la before_deployphase. Un code de sortie différent de zéro dans cette phase indiquera que la construction est erronée .
+S'il y a des étapes que vous souhaitez exécuter après le déploiement, vous pouvez utiliser la after_deployphase.
+
+
+-------------------------
+Instalation de packages à l'aide d' apt
+-------------------------
+Si vos dépendances nécessitent que des bibliothèques natives soient disponibles, vous pouvez utiliser sudo sans mot de passe pour les installer :
+
+before_install:
+- sudo apt-get update -qq
+- sudo apt-get install -qq [packages list]
+Toutes les machines virtuelles sont snapshotted et retournées à leur état initial après chaque génération.
+
+Utilisation de PPA tierces 
+-------------------------
+Si vous avez besoin d'une dépendance native qui n'est pas disponible dans les référentiels Ubuntu officiels, vous pouvez utiliser des PPA tierces .
+
+
+-------------------------
+Constructon d'un délais d'expiration
+-------------------------
+Il est très fréquent que des suites de tests ou des scripts de construction soient bloqués. Travis CI a des limites de temps spécifiques pour chaque travail, et arrêtera la construction et ajoutera un message d'erreur au journal de construction dans les situations suivantes:
+
+Un travail ne produit aucune sortie de journal pendant 10 minutes
+Un travail sur travis-ci.org prend plus de 50 minutes
+Un travail sur travis-ci.com prend plus de 120 minutes
+Quelques raisons communes pour lesquelles les builds pourraient se bloquer:
+
+En attente d'une entrée au clavier ou d'une autre interaction humaine
+Problèmes de concurrence (deadlocks, livelocks et ainsi de suite)
+Installation d'extensions natives qui prennent beaucoup de temps à compiler
+
+Il n'y a pas de timeout pour une construction; une build fonctionnera tant que tous les jobs le feront tant que chaque job n'aura pas expiré.
+
+
+
+-------------------------
+Limitation des tâches concurrentes
+-------------------------
+Le nombre maximal de travaux simultanés dépend de la charge totale du système, mais une situation dans laquelle vous pouvez définir une limite particulière est la suivante:
+
+si votre build dépend d'une ressource externe et peut se trouver dans une situation de concurrence avec des jobs concurrents.
+Vous pouvez définir le nombre maximal de tâches simultanées dans le volet des paramètres pour chaque référentiel.
+
+Ou en utilisant le client en ligne de commande:
+$ travis settings maximum_number_of_builds --set 1
+
+
+
+-------------------------
+Construire seulement le dernier commit
+-------------------------
+Si vous souhaitez uniquement créer la validation la plus récente sur chaque branche, vous pouvez utiliser cette nouvelle fonctionnalité pour annuler automatiquement les anciennes générations de la file d'attente qui ne sont pas encore exécutées .
+Le paramètre Annulation automatique est dans l'onglet Paramètres de chaque référentiel et vous pouvez l'activer séparément pour:
+
+	Constructions de branches annulées automatiquement - qui génèrent votre branche et apparaissent dans l' onglet Historique de construction de votre référentiel.
+	Constructions de requête d'extraction automatique - qui génèrent le résultat de la fusion future de votre branche d'entités par rapport à sa cible et apparaissent dans l' onglet Extraction des demandes de votre référentiel.
+
+Par exemple, dans la capture d'écran suivante, nous avons poussé la validation ca31c2bvers la branche MdA-fix-noticependant que les versions # 226 et 227 étaient en file d'attente. Avec la fonction d'annulation automatique activée, les versions 226 et 227 ont été automatiquement annulées:
+
+
+-------------------------
+Git clone
+-------------------------
+Travis CI copie les dépôts à une profondeur de 50 validations, ce qui n'est vraiment utile que si vous effectuez des opérations git.
+Veuillez noter que si vous utilisez une profondeur de 1 et que vous avez une file d'attente, Travis CI ne construira pas de validations dans la file d'attente lorsque vous appuierez une nouvelle validation.
+
+Vous pouvez définir la profondeur du clone dans .travis.yml:
+git:
+	depth: 3
+	
+Vous pouvez également supprimer --depth entièrement le drapeau avec:
+git:
+  depth: false
+
+
+-------------------------
+Sous Modules Git
+-------------------------
+  Travis CI clone les sous-modules git par défaut, pour éviter cet ensemble:
+git:
+  submodules: false
+
+
+-------------------------
+Construire des branches spécifiques
+-------------------------
+Travis CI utilise le .travis.ymlfichier de la branche contenant la validation git qui déclenche la construction. Inclure les branches utilisant une liste de sécurité ou les exclure en utilisant une liste de blocage.
+
+Saféliser ou bloquer des branches
+-------------------------
+Spécifiez les branches à construire à l'aide d'une liste de sécurité ou de listes de blocage que vous ne souhaitez pas générer:
+# blocklist
+branches:
+  except:
+  - legacy
+  - experimental
+
+# safelist
+branches:
+  only:
+  - master
+  - stable
+  
+
+
+
+
