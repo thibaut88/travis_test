@@ -2,7 +2,7 @@
 		TRAVIS : plateforme d'ntégration continue
 **************************************/
 
-Quelques exemples du type d'informations que votre .travis.ymlfichier peut contenir:
+Quelques exemples du type d'informations que votre fichier .travis.yml peut contenir:
 
 Quel langage de programmation utilise votre projet?
 Quelles commandes ou scripts souhaitez-vous exécuter avant chaque génération (par exemple, pour installer ou cloner les dépendances de votre projet)
