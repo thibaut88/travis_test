@@ -6,11 +6,11 @@ php:
     - 5.6
 
 env:
-    - CAKE_VERSION=master
+    - CAKE_BRANCH=master
     - CAKE_VERSION=2.4
     
 before_script:
-    - git clone --depth 1 --branch $CAKE_VERSION git://github.com/cakephp/cakephp ../cakephp && cd ../cakephp
+    - git clone --depth 1 --branch $CAKE_BRANCH git://github.com/cakephp/cakephp ../cakephp && cd ../cakephp
     - mv ../CakePHP-Upload app/Plugin/Upload
     - chmod -R 777 app/tmp
     - chmod -R 777 app/webroot
