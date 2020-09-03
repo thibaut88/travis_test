@@ -1,20 +1,31 @@
+# indiquer à Travis que l'on travaille avec du PHP
 language: php
 
+# exécuter les tests pour toutes les versions de PHP
 php:
     - 5.3
     - 5.4
     - 5.6
 
+# variables d'environnement
 env:
     - CAKE_BRANCH=master
     - CAKE_VERSION=2.4
-    
+    - CAKE_REPO=git://github.com/cakephp/cakephp
+    # on récupère seulement le dernier commit
+    - GIT_DEPTH=1
+    - DIR=../cakephp
+
+# tous les scripts à exécuter pour configurer notre environnement
 before_script:
-    - git clone --depth 1 --branch $CAKE_BRANCH git://github.com/cakephp/cakephp ../cakephp && cd ../cakephp
+    - git clone --depth $GIT_DEPTH --branch $CAKE_VERSION $CAKE_REPO $DIR && cd $DIR
     - mv ../CakePHP-Upload app/Plugin/Upload
+    # ajouter les bons droits sur le dossier
     - chmod -R 777 app/tmp
     - chmod -R 777 app/webroot
+    # création de la base de donnée
     - sh -c "mysql -e 'CREATE DATABASE cakephp_test;'"
+    # configurer le fichier de la base de donnée
     - echo "<?php
         class DATABASE_CONFIG {
         public \$test = array(
@@ -25,6 +36,8 @@ before_script:
             'persistent' => false
         );
         }" > app/Config/database.php
-  
+ 
+# Demande à Travis de lancer les tests unitaires de
+# CakePHP de tout ce framework en ligne de commande
 script:
     ./lib/Cake/Console/cake test Upload Model/Behavior/UploadBehavior --stderr
